@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sudoku Interativo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      touch-action: manipulation;
+    }
+
+    /* Grid Styles */
+    .sudoku-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      aspect-ratio: 1;
+      border: 3px solid #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.1rem, 4.5vw, 1.8rem);
+      font-weight: 700;
+      border: 1px solid #cbd5e1;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    }
+
+    /* Thick borders for 3x3 blocks */
+    .cell:nth-child(3n) { border-right-width: 2px; border-right-color: #475569; }
+    .cell:nth-child(9n) { border-right-width: 0px; }
+    .cell:nth-child(n+19):nth-child(-n+27),
+    .cell:nth-child(n+46):nth-child(-n+54) {
+      border-bottom-width: 2px;
+      border-bottom-color: #475569;
+    }
+
+    /* Pencil Marks Grid (3x3 inside cell) */
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      width: 100%;
+      height: 100%;
+      padding: 2px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+
+    .note-digit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(0.5rem, 2vw, 0.75rem);
+      font-weight: 600;
+      color: #64748b;
+      line-height: 1;
+    }
+
+    /* States & Highlights */
+    .cell.given { color: #0f172a; background-color: #f8fafc; font-weight: 800; }
+    .cell.user-entered { color: #2563eb; }
+    .cell.selected { background-color: #bfdbfe !important; }
+    .cell.highlight-peer { background-color: #eff6ff; }
+    .cell.highlight-same { background-color: #dbeafe; }
+    .cell.error { color: #dc2626 !important; background-color: #fecaca !important; }
+    .cell.hint-highlight { animation: pulse 1s infinite alternate; }
+
+    @keyframes pulse {
+      0% { background-color: #fef08a; }
+      100% { background-color: #fde047; }
+    }
+
+    /* Keypad button states */
+    .num-btn {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      font-weight: 700;
+      transition: all 0.15s ease;
+    }
+
+    .num-btn:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col items-center p-3 sm:p-6">
+
+  <!-- Header -->
+  <header class="w-full max-w-md flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Sudoku Pro</h1>
+      <p class="text-xs font-semibold text-slate-500">Modo Sem Limites</p>
+    </div>
+    <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-200">
+      <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span id="timer" class="font-mono text-sm font-bold text-slate-700">00:00</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="w-full max-w-md flex flex-col gap-4">
+    
+    <!-- Controls Top Bar -->
+    <div class="flex justify-between items-center bg-white p-2.5 rounded-2xl shadow-sm border border-slate-200">
+      <!-- Difficulty Selector -->
+      <select id="difficulty" onchange="startNewGame()" class="bg-slate-100 font-bold text-xs text-slate-700 py-2 px-3 rounded-xl border-none outline-none cursor-
