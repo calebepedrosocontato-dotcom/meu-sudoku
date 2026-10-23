@@ -1,126 +1,161 @@
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sudoku Interativo</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      touch-action: manipulation;
-    }
-
-    /* Grid Styles */
-    .sudoku-grid {
-      display: grid;
-      grid-template-columns: repeat(9, 1fr);
-      aspect-ratio: 1;
-      border: 3px solid #1e293b;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .cell {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: clamp(1.1rem, 4.5vw, 1.8rem);
-      font-weight: 700;
-      border: 1px solid #cbd5e1;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
-    }
-
-    /* Thick borders for 3x3 blocks */
-    .cell:nth-child(3n) { border-right-width: 2px; border-right-color: #475569; }
-    .cell:nth-child(9n) { border-right-width: 0px; }
-    .cell:nth-child(n+19):nth-child(-n+27),
-    .cell:nth-child(n+46):nth-child(-n+54) {
-      border-bottom-width: 2px;
-      border-bottom-color: #475569;
-    }
-
-    /* Pencil Marks Grid (3x3 inside cell) */
-    .notes-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(3, 1fr);
-      width: 100%;
-      height: 100%;
-      padding: 2px;
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-    }
-
-    .note-digit {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: clamp(0.5rem, 2vw, 0.75rem);
-      font-weight: 600;
-      color: #64748b;
-      line-height: 1;
-    }
-
-    /* States & Highlights */
-    .cell.given { color: #0f172a; background-color: #f8fafc; font-weight: 800; }
-    .cell.user-entered { color: #2563eb; }
-    .cell.selected { background-color: #bfdbfe !important; }
-    .cell.highlight-peer { background-color: #eff6ff; }
-    .cell.highlight-same { background-color: #dbeafe; }
-    .cell.error { color: #dc2626 !important; background-color: #fecaca !important; }
-    .cell.hint-highlight { animation: pulse 1s infinite alternate; }
-
-    @keyframes pulse {
-      0% { background-color: #fef08a; }
-      100% { background-color: #fde047; }
-    }
-
-    /* Keypad button states */
-    .num-btn {
-      aspect-ratio: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      font-weight: 700;
-      transition: all 0.15s ease;
-    }
-
-    .num-btn:active {
-      transform: scale(0.95);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sudoku Interativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            touch-action: manipulation;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            background-color: #cbd5e1;
+            border: 2px solid #475569;
+        }
+        .sudoku-cell {
+            aspect-ratio: 1;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.15s;
+        }
+        .sudoku-cell:focus {
+            outline: none;
+            background-color: #e2e8f0;
+        }
+        .cell-border-right { border-right: 2px solid #475569; }
+        .cell-border-bottom { border-bottom: 2px solid #475569; }
+        .prefilled { color: #0f172a; font-weight: 700; background-color: #f1f5f9; }
+        .user-input { color: #2563eb; }
+        .selected { background-color: #bfdbfe !important; }
+        .highlight { background-color: #eff6ff; }
+        .error { color: #dc2626 !important; background-color: #fee2e2 !important; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col items-center p-3 sm:p-6">
+<body class="flex flex-col min-h-screen justify-between items-center p-4">
 
-  <!-- Header -->
-  <header class="w-full max-w-md flex justify-between items-center mb-4">
-    <div>
-      <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Sudoku Pro</h1>
-      <p class="text-xs font-semibold text-slate-500">Modo Sem Limites</p>
-    </div>
-    <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-200">
-      <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-      </svg>
-      <span id="timer" class="font-mono text-sm font-bold text-slate-700">00:00</span>
-    </div>
-  </header>
+    <header class="w-full max-w-md text-center my-2">
+        <h1 class="text-2xl font-bold text-slate-800">Sudoku</h1>
+        <p class="text-sm text-slate-500">Jogo Interativo para iPhone</p>
+    </header>
 
-  <!-- Main Container -->
-  <main class="w-full max-w-md flex flex-col gap-4">
-    
-    <!-- Controls Top Bar -->
-    <div class="flex justify-between items-center bg-white p-2.5 rounded-2xl shadow-sm border border-slate-200">
-      <!-- Difficulty Selector -->
-      <select id="difficulty" onchange="startNewGame()" class="bg-slate-100 font-bold text-xs text-slate-700 py-2 px-3 rounded-xl border-none outline-none cursor-
+    <main class="w-full max-w-md flex flex-col items-center">
+        <!-- Controlos do Jogo -->
+        <div class="w-full flex justify-between items-center mb-4 px-1">
+            <span id="difficulty-label" class="text-sm font-semibold text-slate-600 bg-slate-200 px-3 py-1 rounded-full">Fácil</span>
+            <button onclick="novoJogo()" class="bg-blue-600 text-sm text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-blue-700 active:scale-95 transition">Novo Jogo</button>
+        </div>
+
+        <!-- Grelha do Sudoku -->
+        <div id="sudoku-board" class="sudoku-grid w-full max-w-[360px] rounded-lg overflow-hidden shadow-lg mb-6"></div>
+
+        <!-- Teclado Numérico Adaptado para Telemóvel -->
+        <div class="grid grid-cols-5 gap-2 w-full max-w-[360px] mb-4">
+            <button onclick="inserirNumero(1)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">1</button>
+            <button onclick="inserirNumero(2)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">2</button>
+            <button onclick="inserirNumero(3)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">3</button>
+            <button onclick="inserirNumero(4)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">4</button>
+            <button onclick="inserirNumero(5)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">5</button>
+            <button onclick="inserirNumero(6)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">6</button>
+            <button onclick="inserirNumero(7)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">7</button>
+            <button onclick="inserirNumero(8)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">8</button>
+            <button onclick="inserirNumero(9)" class="bg-white border border-slate-300 text-lg font-bold py-3 rounded-xl shadow-sm active:bg-slate-100">9</button>
+            <button onclick="inserirNumero(0)" class="bg-red-50 border border-red-200 text-red-600 text-sm font-semibold py-3 rounded-xl shadow-sm active:bg-red-100 flex items-center justify-center">Apagar</button>
+        </div>
+    </main>
+
+    <footer class="text-xs text-slate-400 text-center py-2">
+        Hospedado no GitHub Pages • Pronto para o Ecrã Principal
+    </footer>
+
+    <script>
+        let selectedCell = null;
+        const boardElement = document.getElementById('sudoku-board');
+        
+        // Exemplo inicial funcional de Sudoku (0 representa vazio)
+        const puzzleInicial = [
+            5,3,0,0,7,0,0,0,0,
+            6,0,0,1,9,5,0,0,0,
+            0,9,8,0,0,0,0,6,0,
+            8,0,0,0,6,0,0,0,3,
+            4,0,0,8,0,3,0,0,1,
+            7,0,0,0,2,0,0,0,6,
+            0,6,0,0,0,0,2,8,0,
+            0,0,0,4,1,9,0,0,5,
+            0,0,0,0,8,0,0,7,9
+        ];
+
+        let board = [...puzzleInicial];
+        let original = [...puzzleInicial];
+
+        function criarGrelha() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 81; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'sudoku-cell';
+                
+                // Bordas das caixas 3x3
+                const row = Math.floor(i / 9);
+                const col = i % 9;
+                if (col === 2 || col === 5) cell.classList.add('cell-border-right');
+                if (row === 2 || row === 5) cell.classList.add('cell-border-bottom');
+
+                if (board[i] !== 0) {
+                    cell.textContent = board[i];
+                    if (original[i] !== 0) {
+                        cell.classList.add('prefilled');
+                    } else {
+                        cell.classList.add('user-input');
+                    }
+                }
+
+                cell.addEventListener('click', () => selecionarCel(i, cell));
+                boardElement.appendChild(cell);
+            }
+        }
+
+        let indiceSelecionado = null;
+        function selecionarCel(index, element) {
+            document.querySelectorAll('.sudoku-cell').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            indiceSelecionado = index;
+        }
+
+        function inserirNumero(num) {
+            if (indiceSelecionado === null) return;
+            if (original[indiceSelecionado] !== 0) return; // Não deixa alterar os números fixos do jogo
+
+            board[indiceSelecionado] = num;
+            criarGrelha();
+            
+            // Mantém a célula selecionada após atualizar
+            const cells = document.querySelectorAll('.sudoku-cell');
+            if (cells[indiceSelecionado]) {
+                cells[indiceSelecionado].classList.add('selected');
+            }
+        }
+
+        function novoJogo() {
+            board = [...puzzleInicial];
+            original = [...puzzleInicial];
+            indiceSelecionado = null;
+            criarGrelha();
+        }
+
+        criarGrelha();
+    </script>
+</body>
+</html>
